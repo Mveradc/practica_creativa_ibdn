@@ -1,0 +1,6 @@
+flask
+pymongo
+kafka-python
+iso8601
+joblib
+pyelasticsearch

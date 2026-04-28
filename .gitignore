@@ -1,0 +1,82 @@
+.DS_Store
+.ipynb_checkpoints
+mongodb
+spark
+hadoop
+mongo-hadoop
+lib/mongo*
+lib/pymongo_spark.py
+elasticsearch
+elasticsearch-hadoop
+lib
+ch03/static
+ch06/web/static
+*.pyc
+tmp
+.idea
+kafka
+zeppelin
+ch05/scrape_faa.py
+models
+.vagrant
+*.pem
+.reservation_id
+.ec2_hostname
+.ec2_deep_hostname
+.deep_reservation_id
+deep/data
+.vscode
+ghostdriver.log
+cassandra
+janusgraph
+deep
+data/origin_dest_distances.jsonl
+data/simple_flight_delay_features.jsonl.bz2
+
+# --- Añadidos: ignorar entornos, ficheros temporales y binarios grandes ---
+# Entornos virtuales
+env/
+venv/
+.venv/
+
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+
+# Build / distributions
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# System
+.DS_Store
+
+# Notebooks
+.ipynb_checkpoints
+
+# Logs / local DB
+*.log
+*.sqlite3
+
+# Archives / large binaries
+*.tgz
+*.tar.gz
+*.zip
+*.7z
+
+# Específicos: paquetes de Spark/ Hadoop grandes
+spark-*.tgz
+
+# Modelos e imágenes (si se generan localmente)
+images/
+models/
+
+# Compressed data/cache
+*.bz2
+*.pkl
+*.pickle
