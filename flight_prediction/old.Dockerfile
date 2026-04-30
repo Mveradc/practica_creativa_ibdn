@@ -12,11 +12,13 @@ COPY target/scala-2.13/flight_prediction_2.13-0.1.jar /app/flight_prediction.jar
 
 # --- Directorio donde se montarán los modelos como volumen ---
 RUN mkdir -p /app/models
-ENV SPARK_PACKAGES="org.mongodb.spark:mongo-spark-connector_2.13:10.4.1,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1"
+ENV SPARK_PACKAGES="com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1"
 
 # --- Variables de entorno configurables por docker-compose ---
 ENV KAFKA_BROKERS=localhost:9092
-ENV MONGO_URI=mongodb://localhost:27017
+ENV CASSANDRA_HOST=localhost
+ENV CASSANDRA_PORT=9042
+ENV CASSANDRA_DATACENTER=datacenter1
 ENV BASE_PATH=/app
 
 # --- Comando de arranque ---

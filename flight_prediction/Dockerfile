@@ -8,7 +8,7 @@ RUN set -ex; \
     apt-get install -y python3 python3-pip; \
     rm -rf /var/lib/apt/lists/*
 
-ENV SPARK_PACKAGES="org.mongodb.spark:mongo-spark-connector_2.13:10.4.1,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1"
+ENV SPARK_PACKAGES="com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1"
 ENV SPARK_HOME=/opt/spark
 ENV PATH=/opt/spark/bin:$PATH
 
@@ -25,7 +25,9 @@ RUN mkdir -p /nonexistent/.ivy2.5.2/cache /nonexistent/.ivy2.5.2/jars && chown -
 
 # Variables de entorno configurables por docker-compose
 ENV KAFKA_BROKERS=kafka:9092
-ENV MONGO_URI=mongodb://mongo:27017
+ENV CASSANDRA_HOST=cassandra
+ENV CASSANDRA_PORT=9042
+ENV CASSANDRA_DATACENTER=datacenter1
 ENV BASE_PATH=/app
 
 USER spark

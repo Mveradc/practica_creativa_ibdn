@@ -11,38 +11,38 @@ services:
     networks:
       - bigdata-net
 
-  # cassandra:
-  #   image: cassandra:4.1
-  #   container_name: cassandra
-  #   ports:
-  #     - "9042:9042"
-  #   environment:
-  #     CASSANDRA_CLUSTER_NAME: "flight-cluster"
-  #     CASSANDRA_NUM_TOKENS: 256
-  #     HEAP_NEWSIZE: 128M
-  #     MAX_HEAP_SIZE: 512M
-  #   volumes:
-  #     - cassandra_data:/var/lib/cassandra
-  #   healthcheck:
-  #     test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
-  #     interval: 15s
-  #     timeout: 10s
-  #     retries: 10
-  #     start_period: 60s      # Cassandra tarda en arrancar
-  #   networks:
-  #     - bigdata-net
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: "flight-cluster"
+      CASSANDRA_NUM_TOKENS: 256
+      HEAP_NEWSIZE: 128M
+      MAX_HEAP_SIZE: 512M
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - bigdata-net
 
-  # cassandra-init:
-  #   image: cassandra:4.1
-  #   container_name: cassandra-init
-  #   depends_on:
-  #     cassandra:
-  #       condition: service_healthy
-  #   volumes:
-  #     - ./resources/cassandra/init.cql:/tmp/init.cql
-  #   command: cqlsh cassandra -f /tmp/init.cql
-  #   networks:
-  #     - bigdata-net
+  cassandra-init:
+    image: cassandra:4.1
+    container_name: cassandra-init
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    volumes:
+      - ./resources/cassandra/init.cql:/tmp/init.cql
+    command: cqlsh cassandra -f /tmp/init.cql
+    networks:
+      - bigdata-net
 
   kafka:
     image: apache/kafka:4.2.0
@@ -90,11 +90,11 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      # cassandra:
-      #   condition: service_healthy
+      cassandra:
+        condition: service_healthy
     environment:
       KAFKA_BROKERS: kafka:9092
-      # CASSANDRA_HOST: cassandra
+      CASSANDRA_HOST: cassandra
       MONGO_URI: mongodb://mongo:27017
       BASE_PATH: /app
     volumes:
@@ -110,13 +110,13 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-      # cassandra:
-      #   condition: service_healthy
+      cassandra:
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
     environment:
       KAFKA_BROKERS: kafka:9092
-      # CASSANDRA_HOST: cassandra
+      CASSANDRA_HOST: cassandra
       MONGO_URI: mongodb://mongo:27017
       PROJECT_HOME: /app
     ports:
@@ -130,4 +130,4 @@ networks:
 
 volumes:
   mongo_data:
-  # cassandra_data:
+  cassandra_data:

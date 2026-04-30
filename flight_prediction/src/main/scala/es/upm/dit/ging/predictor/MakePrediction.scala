@@ -1,12 +1,62 @@
 package es.upm.dit.ging.predictor
-import com.mongodb.spark._
+import com.datastax.oss.driver.api.core.CqlSession
 import org.apache.spark.ml.classification.RandomForestClassificationModel
 import org.apache.spark.ml.feature.{Bucketizer, StringIndexerModel, VectorAssembler}
 import org.apache.spark.sql.functions.{concat, from_json, lit}
 import org.apache.spark.sql.types.{DataTypes, StructType}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import java.net.InetSocketAddress
 
 object MakePrediction {
+
+  private val CassandraKeyspace = "agile_data_science"
+  private val CassandraTable = "flight_delay_ml_response"
+
+  private def writeBatchToCassandra(batchDf: DataFrame): Unit = {
+    val cassandraHost = sys.env.getOrElse("CASSANDRA_HOST", "cassandra")
+    val cassandraPort = sys.env.get("CASSANDRA_PORT").map(_.toInt).getOrElse(9042)
+    val cassandraDatacenter = sys.env.getOrElse("CASSANDRA_DATACENTER", "datacenter1")
+    val insertStatement =
+      s"""
+         |INSERT INTO $CassandraKeyspace.$CassandraTable (
+         |  uuid, origin, dest, carrier, flight_date, dep_delay, distance,
+         |  day_of_week, day_of_year, day_of_month, timestamp, prediction
+         |) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         |""".stripMargin
+
+    batchDf.foreachPartition { partitionRows: Iterator[Row] =>
+      if (partitionRows.nonEmpty) {
+        val session = CqlSession.builder()
+          .addContactPoint(new InetSocketAddress(cassandraHost, cassandraPort))
+          .withLocalDatacenter(cassandraDatacenter)
+          .withKeyspace(CassandraKeyspace)
+          .build()
+
+        try {
+          val preparedStatement = session.prepare(insertStatement)
+
+          partitionRows.foreach { row =>
+            session.execute(preparedStatement.bind(
+              row.getAs[String]("uuid"),
+              row.getAs[String]("origin"),
+              row.getAs[String]("dest"),
+              row.getAs[String]("carrier"),
+              row.getAs[String]("flight_date"),
+              java.lang.Double.valueOf(row.getAs[Double]("dep_delay")),
+              java.lang.Double.valueOf(row.getAs[Double]("distance")),
+              java.lang.Integer.valueOf(row.getAs[Int]("day_of_week")),
+              java.lang.Integer.valueOf(row.getAs[Int]("day_of_year")),
+              java.lang.Integer.valueOf(row.getAs[Int]("day_of_month")),
+              row.getAs[String]("timestamp"),
+              java.lang.Double.valueOf(row.getAs[Double]("prediction"))
+            ))
+          }
+        } finally {
+          session.close()
+        }
+      }
+    }
+  }
 
   def main(args: Array[String]): Unit = {
     println("Fligth predictor starting...")
@@ -137,17 +187,27 @@ object MakePrediction {
     finalPredictions.printSchema()
 
     // define a streaming query
-    val dataStreamWriter = finalPredictions
-      .writeStream
-      .format("mongodb")
-      .option("spark.mongodb.connection.uri", sys.env.getOrElse("MONGO_URI", "mongodb://mongo:27017"))
-      .option("spark.mongodb.database", "agile_data_science")
-      .option("checkpointLocation", "/tmp")
-      .option("spark.mongodb.collection", "flight_delay_ml_response")
-      .outputMode("append")
+    val cassandraPredictions = finalPredictions.selectExpr(
+      "CAST(UUID AS STRING) AS uuid",
+      "CAST(Origin AS STRING) AS origin",
+      "CAST(Dest AS STRING) AS dest",
+      "CAST(Carrier AS STRING) AS carrier",
+      "CAST(FlightDate AS STRING) AS flight_date",
+      "CAST(DepDelay AS DOUBLE) AS dep_delay",
+      "CAST(Distance AS DOUBLE) AS distance",
+      "CAST(DayOfWeek AS INT) AS day_of_week",
+      "CAST(DayOfYear AS INT) AS day_of_year",
+      "CAST(DayOfMonth AS INT) AS day_of_month",
+      "CAST(Timestamp AS STRING) AS timestamp",
+      "CAST(prediction AS DOUBLE) AS prediction"
+    )
 
-    // run the query
-    val mongoQuery = dataStreamWriter.start()
+    val cassandraQuery = cassandraPredictions
+      .writeStream
+      .foreachBatch((batchDf: DataFrame, _: Long) => writeBatchToCassandra(batchDf))
+      .option("checkpointLocation", "/tmp/flight-delay-ml-cassandra-checkpoint")
+      .outputMode("append")
+      .start()
 
     val kafkaPredictions = finalPredictions.selectExpr(
       "CAST(UUID AS STRING) AS key",
@@ -163,12 +223,7 @@ object MakePrediction {
       .outputMode("append")
       .start()
 
-    val consoleOutput = finalPredictions.writeStream
-      .outputMode("append")
-      .format("console")
-      .start()
     spark.streams.awaitAnyTermination()
-    consoleOutput.awaitTermination()
   }
 
 }
