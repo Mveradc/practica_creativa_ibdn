@@ -1,38 +1,36 @@
-FROM eclipse-temurin:17-jdk-jammy
+FROM spark:4.1.1-scala2.13-java17-ubuntu
 
-# --- Instalar Spark 4.1.1 ---
-ENV SPARK_VERSION=4.1.1
+USER root
+
+# Instalar python3/pip (si la app lo necesita)
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y python3 python3-pip; \
+    rm -rf /var/lib/apt/lists/*
+
+ENV SPARK_PACKAGES="org.mongodb.spark:mongo-spark-connector_2.13:10.4.1,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1"
 ENV SPARK_HOME=/opt/spark
-ENV PATH=$SPARK_HOME/bin:$PATH
+ENV PATH=/opt/spark/bin:$PATH
 
-COPY spark/ /opt/spark/
-
-# --- Directorio de trabajo ---
+# Directorio de trabajo
 WORKDIR /app
 
-# --- Copiar el JAR compilado ---
-# Requiere haber ejecutado 'sbt package' antes de hacer docker build
+# Copiar el JAR compilado
 COPY target/scala-2.13/flight_prediction_2.13-0.1.jar /app/flight_prediction.jar
 
-# --- Directorio donde se montarán los modelos como volumen ---
+# Directorio donde se montarán los modelos como volumen
 RUN mkdir -p /app/models
+RUN chown -R spark:spark /app/models
+RUN mkdir -p /nonexistent/.ivy2.5.2/cache /nonexistent/.ivy2.5.2/jars && chown -R spark:spark /nonexistent
 
-# --- Pre-descargar dependencias de Spark para no hacerlo en cada arranque ---
-# Esto descarga kafka y mongo connector al ivy cache durante el build
-ENV SPARK_PACKAGES="org.mongodb.spark:mongo-spark-connector_2.13:10.4.1,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1"
-
-RUN spark-submit \
-    --packages ${SPARK_PACKAGES} \
-    --class es.upm.dit.ging.predictor.MakePrediction \
-    --dry-run \
-    /app/flight_prediction.jar || true
-
-# --- Variables de entorno configurables por docker-compose ---
-ENV KAFKA_BROKERS=localhost:9092
-ENV MONGO_URI=mongodb://localhost:27017
+# Variables de entorno configurables por docker-compose
+ENV KAFKA_BROKERS=kafka:9092
+ENV MONGO_URI=mongodb://mongo:27017
 ENV BASE_PATH=/app
 
-# --- Comando de arranque ---
+USER spark
+
+# Comando de arranque (usa PATH que incluye /opt/spark/bin)
 CMD spark-submit \
     --packages ${SPARK_PACKAGES} \
     --master local[*] \

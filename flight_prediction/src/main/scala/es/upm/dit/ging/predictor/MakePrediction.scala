@@ -140,20 +140,34 @@ object MakePrediction {
     val dataStreamWriter = finalPredictions
       .writeStream
       .format("mongodb")
-      .option("spark.mongodb.connection.uri", sys.env.getOrElse("MONGO_URI", "mongodb://localhost:27017"))
+      .option("spark.mongodb.connection.uri", sys.env.getOrElse("MONGO_URI", "mongodb://mongo:27017"))
       .option("spark.mongodb.database", "agile_data_science")
       .option("checkpointLocation", "/tmp")
       .option("spark.mongodb.collection", "flight_delay_ml_response")
       .outputMode("append")
 
     // run the query
-    val query = dataStreamWriter.start()
-    // Console Output for predictions
+    val mongoQuery = dataStreamWriter.start()
+
+    val kafkaPredictions = finalPredictions.selectExpr(
+      "CAST(UUID AS STRING) AS key",
+      "to_json(struct(*)) AS value"
+    )
+
+    val kafkaQuery = kafkaPredictions
+      .writeStream
+      .format("kafka")
+      .option("kafka.bootstrap.servers", sys.env.getOrElse("KAFKA_BROKERS", "localhost:9092"))
+      .option("topic", sys.env.getOrElse("KAFKA_RESULTS_TOPIC", "flight-delay-ml-results"))
+      .option("checkpointLocation", "/tmp/flight-delay-ml-results-checkpoint")
+      .outputMode("append")
+      .start()
 
     val consoleOutput = finalPredictions.writeStream
       .outputMode("append")
       .format("console")
       .start()
+    spark.streams.awaitAnyTermination()
     consoleOutput.awaitTermination()
   }
 

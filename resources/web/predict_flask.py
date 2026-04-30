@@ -2,6 +2,8 @@ import sys, os, re
 from flask import Flask, render_template, request
 from pymongo import MongoClient
 from bson import json_util
+from flask_socketio import SocketIO, emit
+import threading
 
 # Configuration details
 import config
@@ -11,6 +13,7 @@ import predict_utils
 
 # Set up Flask, Mongo and Elasticsearch
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 from pyelasticsearch import ElasticSearch
 elastic = ElasticSearch(config.ELASTIC_URL)
@@ -23,8 +26,8 @@ import datetime
 
 # Setup Kafka
 from kafka import KafkaProducer
-KAFKA_BROKERS=os.environ.get('KAFKA_BROKERS', 'localhost:9092')
-MONGO_URI=os.environ.get('MONGO_URI', 'mongodb://localhost:27017')
+KAFKA_BROKERS=os.environ.get('KAFKA_BROKERS', 'kafka:9092')
+MONGO_URI=os.environ.get('MONGO_URI', 'mongodb://mongo:27017')
 client = MongoClient(MONGO_URI)
 
 def get_producer():
@@ -39,6 +42,47 @@ def get_producer():
 
 producer = get_producer()
 PREDICTION_TOPIC = 'flight-delay-ml-request'
+RESULTS_TOPIC = 'flight-delay-ml-results'
+
+def kafka_consumer_thread():
+  """Consumer thread that reads predictions from Kafka and broadcasts via WebSocket"""
+  from kafka import KafkaConsumer
+  import time
+  
+  # Reintentos para conectar a Kafka
+  for attempt in range(10):
+    try:
+      consumer = KafkaConsumer(
+        RESULTS_TOPIC,
+        bootstrap_servers=[KAFKA_BROKERS],
+        value_deserializer=lambda m: json.loads(m.decode('utf-8')) if m else None,
+        group_id='flask-prediction-consumer',
+        auto_offset_reset='earliest',
+        enable_auto_commit=True,
+        session_timeout_ms=30000
+      )
+      print(f"✓ Kafka consumer conectado para topic: {RESULTS_TOPIC}")
+      break
+    except Exception as e:
+      print(f"✗ Intento {attempt+1}/10 fallido: {e}")
+      time.sleep(2)
+  else:
+    print("✗ No se pudo conectar a Kafka tras 10 intentos")
+    return
+  
+  print(f"Esperando mensajes en topic {RESULTS_TOPIC}...")
+  for message in consumer:
+    try:
+      prediction = message.value
+      if prediction:
+        socketio.emit('new_prediction', prediction)
+    except Exception as e:
+      print(f"✗ Error procesando mensaje: {e}")
+      import traceback
+      traceback.print_exc()
+
+# Iniciar consumer en thread daemon
+threading.Thread(target=kafka_consumer_thread, daemon=True).start()
 
 import uuid
 
@@ -498,7 +542,7 @@ def classify_flight_delays_realtime():
   prediction_features['Timestamp'] = predict_utils.get_current_timestamp()
   
   # Create a unique ID for this message
-  unique_id = str(uuid.uuid4())
+  unique_id = request.form.get('UUID') or str(uuid.uuid4())
   prediction_features['UUID'] = unique_id
   
   message_bytes = json.dumps(prediction_features).encode()
@@ -549,9 +593,20 @@ def shutdown():
   shutdown_server()
   return 'Server shutting down...'
 
+@socketio.on('connect')
+def handle_connect():
+  print('Cliente WebSocket conectado')
+  emit('status', {'msg': 'Conectado al servidor de predicciones'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+  print('Cliente WebSocket desconectado')
+
 if __name__ == "__main__":
-    app.run(
+    socketio.run(
+    app,
     debug=True,
     host='0.0.0.0',
-    port='5001'
+    port=5001,
+    allow_unsafe_werkzeug=True
   )
