@@ -3,7 +3,6 @@ from flask import Flask, render_template, request
 from pymongo import MongoClient
 from bson import json_util
 from flask_socketio import SocketIO, emit
-import threading
 
 # Configuration details
 import config
@@ -80,9 +79,6 @@ def kafka_consumer_thread():
       print(f"✗ Error procesando mensaje: {e}")
       import traceback
       traceback.print_exc()
-
-# Iniciar consumer en thread daemon
-threading.Thread(target=kafka_consumer_thread, daemon=True).start()
 
 import uuid
 
@@ -603,10 +599,12 @@ def handle_disconnect():
   print('Cliente WebSocket desconectado')
 
 if __name__ == "__main__":
-    socketio.run(
+  socketio.start_background_task(kafka_consumer_thread)
+  socketio.run(
     app,
     debug=True,
     host='0.0.0.0',
     port=5001,
-    allow_unsafe_werkzeug=True
+    allow_unsafe_werkzeug=True,
+    use_reloader=False
   )

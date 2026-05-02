@@ -9,7 +9,7 @@ services:
       - mongo_data:/data/db
       - ./data:/data/import
     networks:
-      - bigdata-net
+      - ibdn-net
 
   cassandra:
     image: cassandra:4.1
@@ -30,7 +30,7 @@ services:
       retries: 10
       start_period: 60s
     networks:
-      - bigdata-net
+      - ibdn-net
 
   cassandra-init:
     image: cassandra:4.1
@@ -42,7 +42,7 @@ services:
       - ./resources/cassandra/init.cql:/tmp/init.cql
     command: cqlsh cassandra -f /tmp/init.cql
     networks:
-      - bigdata-net
+      - ibdn-net
 
   kafka:
     image: apache/kafka:4.2.0
@@ -65,7 +65,7 @@ services:
       timeout: 10s
       retries: 5
     networks:
-      - bigdata-net
+      - ibdn-net
 
   kafka-init:
     image: apache/kafka:4.2.0
@@ -80,7 +80,71 @@ services:
       echo 'Topics creados correctamente'
       "
     networks:
-      - bigdata-net
+      - ibdn-net
+
+  spark-master:
+    build:
+      context: ./flight_prediction
+      dockerfile: Dockerfile
+    container_name: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ibdn-net
+
+  spark-worker-1:
+    build:
+      context: ./flight_prediction
+      dockerfile: Dockerfile
+    container_name: spark-worker-1
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ibdn-net
+
+  spark-worker-2:
+    build:
+      context: ./flight_prediction
+      dockerfile: Dockerfile
+    container_name: spark-worker-2
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    volumes:
+      - ./models:/app/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ibdn-net
 
   spark-submit:
     build:
@@ -88,6 +152,12 @@ services:
       dockerfile: Dockerfile
     container_name: spark-submit
     depends_on:
+      spark-master:
+        condition: service_healthy
+      spark-worker-1:
+        condition: service_healthy
+      spark-worker-2:
+        condition: service_healthy
       kafka:
         condition: service_healthy
       cassandra:
@@ -97,10 +167,15 @@ services:
       CASSANDRA_HOST: cassandra
       MONGO_URI: mongodb://mongo:27017
       BASE_PATH: /app
+      SPARK_MASTER: spark://spark-master:7077
+      SPARK_PACKAGES: com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1
     volumes:
       - ./models:/app/models
     networks:
-      - bigdata-net
+      - ibdn-net
+    # override CMD to run the job against the cluster
+    command: >
+      bash -c "spark-submit --packages $$SPARK_PACKAGES --master spark://spark-master:7077 --deploy-mode client --class es.upm.dit.ging.predictor.MakePrediction /app/flight_prediction.jar"
 
   flask:
     build:
@@ -122,10 +197,10 @@ services:
     ports:
       - "5001:5001"
     networks:
-      - bigdata-net
+      - ibdn-net
 
 networks:
-  bigdata-net:
+  ibdn-net:
     driver: bridge
 
 volumes:
