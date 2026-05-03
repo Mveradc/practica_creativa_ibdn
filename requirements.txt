@@ -9,6 +9,7 @@ matplotlib
 numpy
 py4j
 pyelasticsearch
+cassandra-driver
 pymongo
 requests
 scipy

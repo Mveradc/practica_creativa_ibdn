@@ -1,6 +1,6 @@
 import sys, os, re
 from flask import Flask, render_template, request
-from pymongo import MongoClient
+from cassandra.cluster import Cluster
 from bson import json_util
 from flask_socketio import SocketIO, emit
 
@@ -27,7 +27,9 @@ import datetime
 from kafka import KafkaProducer
 KAFKA_BROKERS=os.environ.get('KAFKA_BROKERS', 'kafka:9092')
 MONGO_URI=os.environ.get('MONGO_URI', 'mongodb://mongo:27017')
-client = MongoClient(MONGO_URI)
+cluster = Cluster(['cassandra'])
+session = cluster.connect('agile_data_science')
+prepared_dist = session.prepare("SELECT distance FROM origin_dest_distances WHERE origin=? AND dest=?")
 
 def get_producer():
   import time
@@ -523,7 +525,7 @@ def classify_flight_delays_realtime():
   
   # Set the derived values
   prediction_features['Distance'] = predict_utils.get_flight_distance(
-    client, api_form_values['Origin'],
+    session, prepared_dist, api_form_values['Origin'],
     api_form_values['Dest']
   )
   
@@ -587,6 +589,7 @@ def shutdown_server():
 @app.route('/shutdown')
 def shutdown():
   shutdown_server()
+  cluster.shutdown()
   return 'Server shutting down...'
 
 @socketio.on('connect')

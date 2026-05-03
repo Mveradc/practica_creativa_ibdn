@@ -1,5 +1,4 @@
 import sys, os, re
-import pymongo
 import datetime, iso8601
 
 def process_search(results):
@@ -31,14 +30,10 @@ def strip_place(url):
     return url
   return p
 
-def get_flight_distance(client, origin, dest):
+def get_flight_distance(session, prepared, origin, dest):
   """Get the distance between a pair of airport codes"""
-  query = {
-    "Origin": origin,
-    "Dest": dest,
-  }
-  record = client.agile_data_science.origin_dest_distances.find_one(query)
-  return record["Distance"]
+  row = session.execute(prepared, (origin, dest)).one()
+  return row.distance
 
 def get_regression_date_args(iso_date):
   """Given an ISO Date, return the day of year, day of month, day of week as the API expects them."""
