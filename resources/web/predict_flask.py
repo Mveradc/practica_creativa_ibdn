@@ -26,7 +26,6 @@ import datetime
 # Setup Kafka
 from kafka import KafkaProducer
 KAFKA_BROKERS=os.environ.get('KAFKA_BROKERS', 'kafka:9092')
-MONGO_URI=os.environ.get('MONGO_URI', 'mongodb://mongo:27017')
 cluster = Cluster(['cassandra'])
 session = cluster.connect('agile_data_science')
 prepared_dist = session.prepare("SELECT distance FROM origin_dest_distances WHERE origin=? AND dest=?")
@@ -62,13 +61,13 @@ def kafka_consumer_thread():
         enable_auto_commit=True,
         session_timeout_ms=30000
       )
-      print(f"✓ Kafka consumer conectado para topic: {RESULTS_TOPIC}")
+      print(f"Kafka consumer conectado para topic: {RESULTS_TOPIC}")
       break
     except Exception as e:
-      print(f"✗ Intento {attempt+1}/10 fallido: {e}")
+      print(f"Intento {attempt+1}/10 fallido: {e}")
       time.sleep(2)
   else:
-    print("✗ No se pudo conectar a Kafka tras 10 intentos")
+    print("No se pudo conectar a Kafka tras 10 intentos")
     return
   
   print(f"Esperando mensajes en topic {RESULTS_TOPIC}...")
@@ -78,7 +77,7 @@ def kafka_consumer_thread():
       if prediction:
         socketio.emit('new_prediction', prediction)
     except Exception as e:
-      print(f"✗ Error procesando mensaje: {e}")
+      print(f"Error procesando mensaje: {e}")
       import traceback
       traceback.print_exc()
 
