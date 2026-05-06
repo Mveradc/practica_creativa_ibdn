@@ -4,7 +4,7 @@ import sys, os, re
 from os import environ
 
 # Pass date and base path to main() from airflow
-def main(base_path):
+def main(base_path, use_lakehouse=True, use_mlflow=True):
   
   # Default to "."
   try: base_path
@@ -24,7 +24,33 @@ def main(base_path):
     import pyspark.sql
     
     sc = pyspark.SparkContext()
-    spark = pyspark.sql.SparkSession(sc).builder.appName(APP_NAME).getOrCreate()
+    spark_builder = pyspark.sql.SparkSession.builder.appName(APP_NAME)
+    
+    # Configure Iceberg if using lakehouse
+    if use_lakehouse:
+      spark_builder = spark_builder \
+        .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+        .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
+        .config("spark.sql.catalog.local.type", "hadoop") \
+        .config("spark.sql.catalog.local.warehouse", "s3a://lakehouse/warehouse") \
+        .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+        .config("spark.hadoop.fs.s3a.access.key", "minio") \
+        .config("spark.hadoop.fs.s3a.secret.key", "minio123") \
+        .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+        .config("spark.hadoop.fs.s3a.connection.timeout", "60000") \
+        .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
+    
+    spark = spark_builder.getOrCreate()
+    
+    # Initialize MLflow if requested
+    if use_mlflow:
+      try:
+        import mlflow
+        mlflow.set_tracking_uri("http://localhost:5000")  # Adjust if MLflow is remote
+        mlflow.set_experiment("flight_delay_prediction")
+        mlflow.start_run()
+      except Exception as e:
+        print(f"MLflow not available: {e}. Continuing without tracking.")
   
   #
   # {
@@ -53,10 +79,14 @@ def main(base_path):
     StructField("Origin", StringType(), True),      # "Origin":"TUS"
   ])
   
-  input_path = "{}/data/simple_flight_delay_features.jsonl.bz2".format(
-    base_path
-  )
-  features = spark.read.json(input_path, schema=schema)
+  # Load data: from lakehouse (Iceberg) or local storage
+  if use_lakehouse:
+    print("Loading data from Iceberg lakehouse: local.db.vuelos")
+    features = spark.read.table("local.db.vuelos")
+  else:
+    print("Loading data from local storage")
+    input_path = "{}/data/simple_flight_delay_features.jsonl.bz2".format(base_path)
+    features = spark.read.json(input_path, schema=schema)
   features.first()
   
   #
@@ -180,11 +210,61 @@ def main(base_path):
   accuracy = evaluator.evaluate(predictions)
   print("Accuracy = {}".format(accuracy))
   
+  # Log metrics to MLflow if enabled
+  if use_mlflow:
+    try:
+      import mlflow
+      mlflow.log_metric("accuracy", accuracy)
+      mlflow.log_param("use_lakehouse", use_lakehouse)
+      mlflow.log_param("num_trees", 20)  # RandomForestClassifier default
+      mlflow.log_param("max_bins", 4657)
+    except Exception as e:
+      print(f"Could not log to MLflow: {e}")
+  
   # Check the distribution of predictions
   predictions.groupBy("Prediction").count().show()
   
   # Check a sample
   predictions.sample(False, 0.001, 18).orderBy("CRSDepTime").show(6)
+  
+  # End MLflow run if active
+  if use_mlflow:
+    try:
+      import mlflow
+      mlflow.end_run()
+    except Exception as e:
+      print(f"Could not end MLflow run: {e}")
 
 if __name__ == "__main__":
-  main(sys.argv[1])
+  # Usage: python train_spark_mllib_model.py [base_path] [--local] [--no-mlflow]
+  base_path = sys.argv[1] if len(sys.argv) > 1 else "."
+  use_lakehouse = "--local" not in sys.argv
+  use_mlflow = "--no-mlflow" not in sys.argv
+  
+  main(base_path, use_lakehouse=use_lakehouse, use_mlflow=use_mlflow)
+
+
+"""
+
+docker compose exec spark-submit bash -lc "
+  spark-submit \
+    --master spark://spark-master:7077 \
+    --deploy-mode client \
+    --conf spark.scheduler.mode=FAIR \
+    --total-executor-cores 2 \
+    --executor-cores 2 \
+    --executor-memory 4g \
+    --driver-memory 2g \
+    --packages org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1,org.apache.hadoop:hadoop-aws:3.4.2 \
+    --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
+    --conf spark.sql.catalog.local=org.apache.iceberg.spark.SparkCatalog \
+    --conf spark.sql.catalog.local.type=hadoop \
+    --conf spark.sql.catalog.local.warehouse=s3a://lakehouse/warehouse \
+    --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 \
+    --conf spark.hadoop.fs.s3a.access.key=minio \
+    --conf spark.hadoop.fs.s3a.secret.key=minio123 \
+    --conf spark.hadoop.fs.s3a.path.style.access=true \
+    /app/resources/train_spark_mllib_model.py . --no-
+"
+
+"""

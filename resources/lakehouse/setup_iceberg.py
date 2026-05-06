@@ -12,8 +12,6 @@ HADOOP_AWS_ARTIFACT = os.environ.get(
 
 os.environ["PYSPARK_SUBMIT_ARGS"] = f"--packages {ICEBERG_ARTIFACT},{HADOOP_AWS_ARTIFACT} pyspark-shell"
 
-print(f"Cargando dependencias: {ICEBERG_ARTIFACT}, {HADOOP_AWS_ARTIFACT}")
-
 # Configuración de la Sesión de Spark
 spark = SparkSession.builder \
     .appName("IcebergProcessing") \
@@ -29,25 +27,19 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.connection.timeout", "60000") \
     .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
     .getOrCreate()
+
 # PROCESAMIENTO DE VALORES: 
-# Convertimos el "60s" detectado a un formato numérico que el driver de S3A pueda procesar.
 sc = spark.sparkContext
 hadoop_conf = sc._jsc.hadoopConfiguration()
 
-# Mantenemos el tiempo de espera de 60 segundos, pero en formato de milisegundos (60000)
-# Esto permite que Hadoop procese la conexión sin lanzar la excepción NumberFormatException.
 hadoop_conf.set("fs.s3a.connection.timeout", "60000")
 hadoop_conf.set("fs.s3a.connection.establish.timeout", "60000")
-
-print("Configuración normalizada. Procesando datos de MinIO...")
 
 # Lectura y Escritura
 path_source = "s3a://lakehouse/training-data/simple_flight_delay_features.jsonl.bz2"
 
-# Ahora Spark podrá procesar el archivo porque el "timeout" ya es un número válido
 df = spark.read.json(path_source)
 
-# En catálogos Iceberg v2, CREATE NAMESPACE es la sintaxis recomendada.
 spark.sql("CREATE NAMESPACE IF NOT EXISTS local.db")
 df.writeTo("local.db.vuelos").using("iceberg").createOrReplace()
 

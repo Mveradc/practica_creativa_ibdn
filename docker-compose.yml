@@ -173,7 +173,7 @@ services:
   spark-submit:
     build:
       context: ./flight_prediction
-      dockerfile: Dockerfile
+      dockerfile: job.Dockerfile
     container_name: spark-submit
     depends_on:
       spark-master:
@@ -193,14 +193,23 @@ services:
       CASSANDRA_HOST: cassandra
       BASE_PATH: /app
       SPARK_MASTER: spark://spark-master:7077
-      SPARK_PACKAGES: com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1
     volumes:
       - ./models:/app/models
+      - .:/app
     networks:
       - ibdn-net
-    # override CMD to run the job against the cluster
     command: >
-      bash -c "spark-submit --packages $$SPARK_PACKAGES --master spark://spark-master:7077 --deploy-mode client --class es.upm.dit.ging.predictor.MakePrediction /app/flight_prediction.jar"
+      bash -lc "spark-submit \
+        --master spark://spark-master:7077 \
+        --deploy-mode client \
+        --conf spark.scheduler.mode=FAIR \
+        --total-executor-cores 1 \
+        --executor-cores 1 \
+        --executor-memory 1g \
+        --driver-memory 1g \
+        --packages com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1 \
+        --class es.upm.dit.ging.predictor.MakePrediction \
+        /app/flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar"
 
   flask:
     build:

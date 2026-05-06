@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Primero vemos en qué carpeta estamos en el SSH de GCloud
-echo "Carpeta actual en GCloud: $(pwd)"
-echo "Contenido de la carpeta data:"
 ls ./data
 
 # Ejecutamos el contenedor con una pequeña comprobación extra
