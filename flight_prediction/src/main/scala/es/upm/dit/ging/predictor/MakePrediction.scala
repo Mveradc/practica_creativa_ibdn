@@ -76,43 +76,26 @@ object MakePrediction {
 
     //Load the arrival delay bucketizer from MinIO
     val base_path= sys.env.getOrElse("BASE_PATH", ".")
-    val useLakehouse = sys.env.getOrElse("USE_LAKEHOUSE", "false").toBoolean
     
-    val arrivalBucketizerPath = if (useLakehouse) {
-      "s3a://lakehouse/models/arrival_bucketizer_2.0.bin"
-    } else {
-      "%s/models/arrival_bucketizer_2.0.bin".format(base_path)
-    }
+    val arrivalBucketizerPath = "s3a://lakehouse/models/arrival_bucketizer_2.0.bin"
     print(arrivalBucketizerPath.toString())
     val arrivalBucketizer = Bucketizer.load(arrivalBucketizerPath)
     val columns= Seq("Carrier","Origin","Dest","Route")
 
     //Load all the string field vectorizer pipelines into a dict
     val stringIndexerModelPath = columns.map { n =>
-      val path = if (useLakehouse) {
-        "s3a://lakehouse/models/string_indexer_model_%s.bin".format(n)
-      } else {
-        "%s/models/string_indexer_model_%s.bin".format(base_path, n)
-      }
+      val path = "s3a://lakehouse/models/string_indexer_model_%s.bin".format(n)
       path
     }
     val stringIndexerModel = stringIndexerModelPath.map{n => StringIndexerModel.load(n.toString)}
     val stringIndexerModels  = (columns zip stringIndexerModel).toMap
 
     // Load the numeric vector assembler
-    val vectorAssemblerPath = if (useLakehouse) {
-      "s3a://lakehouse/models/numeric_vector_assembler.bin"
-    } else {
-      "%s/models/numeric_vector_assembler.bin".format(base_path)
-    }
+    val vectorAssemblerPath = "s3a://lakehouse/models/numeric_vector_assembler.bin"
     val vectorAssembler = VectorAssembler.load(vectorAssemblerPath)
 
     // Load the classifier model
-    val randomForestModelPath = if (useLakehouse) {
-      "s3a://lakehouse/models/spark_random_forest_classifier.flight_delays.5.0.bin"
-    } else {
-      "%s/models/spark_random_forest_classifier.flight_delays.5.0.bin".format(base_path)
-    }
+    val randomForestModelPath = "s3a://lakehouse/models/spark_random_forest_classifier.flight_delays.5.0.bin"
     val rfc = RandomForestClassificationModel.load(randomForestModelPath)
 
     //Process Prediction Requests in Streaming

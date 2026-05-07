@@ -117,6 +117,7 @@ services:
       - "8080:8080"
     volumes:
       - ./models:/app/models
+      - ./resources:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 10s
@@ -139,6 +140,7 @@ services:
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
       - ./models:/app/models
+      - ./resources:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081"]
       interval: 10s
@@ -161,6 +163,7 @@ services:
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
       - ./models:/app/models
+      - ./resources:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081"]
       interval: 10s
@@ -192,7 +195,6 @@ services:
       KAFKA_BROKERS: kafka:9092
       CASSANDRA_HOST: cassandra
       BASE_PATH: /app
-      USE_LAKEHOUSE: "false"
       SPARK_MASTER: spark://spark-master:7077
       MLFLOW_TRACKING_URI: http://mlflow:5050
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
@@ -285,7 +287,6 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./resources/airflow:/opt/airflow/dags
       - ./models:/app/models
     command: scheduler
@@ -319,7 +320,7 @@ volumes:
   postgres_data:
 
 
-# "docker exec airflow-webserver airflow users create \
+# docker exec airflow-webserver airflow users create \
 #   --username admin --password admin \
 #   --firstname Admin --lastname User \
-#   --role Admin --email admin@example.com"
+#   --role Admin --email admin@example.com
