@@ -65,29 +65,54 @@ object MakePrediction {
       .builder
       .appName("StructuredNetworkWordCount")
       .master(sys.env.getOrElse("SPARK_MASTER", "local[*]"))
+      .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")
+      .config("spark.hadoop.fs.s3a.access.key", "minio")
+      .config("spark.hadoop.fs.s3a.secret.key", "minio123")
+      .config("spark.hadoop.fs.s3a.path.style.access", "true")
+      .config("spark.hadoop.fs.s3a.connection.timeout", "60000")
+      .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
       .getOrCreate()
     import spark.implicits._
 
-    //Load the arrival delay bucketizer
+    //Load the arrival delay bucketizer from MinIO
     val base_path= sys.env.getOrElse("BASE_PATH", ".")
-    val arrivalBucketizerPath = "%s/models/arrival_bucketizer_2.0.bin".format(base_path)
+    val useLakehouse = sys.env.getOrElse("USE_LAKEHOUSE", "false").toBoolean
+    
+    val arrivalBucketizerPath = if (useLakehouse) {
+      "s3a://lakehouse/models/arrival_bucketizer_2.0.bin"
+    } else {
+      "%s/models/arrival_bucketizer_2.0.bin".format(base_path)
+    }
     print(arrivalBucketizerPath.toString())
     val arrivalBucketizer = Bucketizer.load(arrivalBucketizerPath)
     val columns= Seq("Carrier","Origin","Dest","Route")
 
     //Load all the string field vectorizer pipelines into a dict
-    val stringIndexerModelPath =  columns.map(n=> ("%s/models/string_indexer_model_"
-      .format(base_path)+"%s.bin".format(n)).toSeq)
+    val stringIndexerModelPath = columns.map { n =>
+      val path = if (useLakehouse) {
+        "s3a://lakehouse/models/string_indexer_model_%s.bin".format(n)
+      } else {
+        "%s/models/string_indexer_model_%s.bin".format(base_path, n)
+      }
+      path
+    }
     val stringIndexerModel = stringIndexerModelPath.map{n => StringIndexerModel.load(n.toString)}
     val stringIndexerModels  = (columns zip stringIndexerModel).toMap
 
     // Load the numeric vector assembler
-    val vectorAssemblerPath = "%s/models/numeric_vector_assembler.bin".format(base_path)
+    val vectorAssemblerPath = if (useLakehouse) {
+      "s3a://lakehouse/models/numeric_vector_assembler.bin"
+    } else {
+      "%s/models/numeric_vector_assembler.bin".format(base_path)
+    }
     val vectorAssembler = VectorAssembler.load(vectorAssemblerPath)
 
     // Load the classifier model
-    val randomForestModelPath = "%s/models/spark_random_forest_classifier.flight_delays.5.0.bin".format(
-      base_path)
+    val randomForestModelPath = if (useLakehouse) {
+      "s3a://lakehouse/models/spark_random_forest_classifier.flight_delays.5.0.bin"
+    } else {
+      "%s/models/spark_random_forest_classifier.flight_delays.5.0.bin".format(base_path)
+    }
     val rfc = RandomForestClassificationModel.load(randomForestModelPath)
 
     //Process Prediction Requests in Streaming

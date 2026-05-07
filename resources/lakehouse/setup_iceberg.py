@@ -54,7 +54,7 @@ docker compose exec spark-master bash -lc "
   spark-submit \
     --master spark://spark-master:7077 \
     --packages org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1,org.apache.hadoop:hadoop-aws:3.4.2 \
-    /app/resources/lakehouse/setup_iceberg.py
+    /app/setup_iceberg.py
 "
 
 --- Comprobación de tablas (info) ---

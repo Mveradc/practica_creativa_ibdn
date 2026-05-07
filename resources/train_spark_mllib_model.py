@@ -46,7 +46,7 @@ def main(base_path, use_lakehouse=True, use_mlflow=True):
     if use_mlflow:
       try:
         import mlflow
-        mlflow.set_tracking_uri("http://localhost:5000")  # Adjust if MLflow is remote
+        mlflow.set_tracking_uri("http://mlflow:5050")
         mlflow.set_experiment("flight_delay_prediction")
         mlflow.start_run()
       except Exception as e:
@@ -123,8 +123,11 @@ def main(base_path, use_lakehouse=True, use_mlflow=True):
     outputCol="ArrDelayBucket"
   )
   
-  # Save the bucketizer
-  arrival_bucketizer_path = "{}/models/arrival_bucketizer_2.0.bin".format(base_path)
+  # Save the bucketizer (to MinIO if using lakehouse, else local)
+  if use_lakehouse:
+    arrival_bucketizer_path = "s3a://lakehouse/models/arrival_bucketizer_2.0.bin"
+  else:
+    arrival_bucketizer_path = "{}/models/arrival_bucketizer_2.0.bin".format(base_path)
   arrival_bucketizer.write().overwrite().save(arrival_bucketizer_path)
   
   # Apply the bucketizer
@@ -150,10 +153,13 @@ def main(base_path, use_lakehouse=True, use_mlflow=True):
     ml_bucketized_features = ml_bucketized_features.drop(column)
     
     # Save the pipeline model
-    string_indexer_output_path = "{}/models/string_indexer_model_{}.bin".format(
-      base_path,
-      column
-    )
+    if use_lakehouse:
+      string_indexer_output_path = "s3a://lakehouse/models/string_indexer_model_{}.bin".format(column)
+    else:
+      string_indexer_output_path = "{}/models/string_indexer_model_{}.bin".format(
+        base_path,
+        column
+      )
     string_indexer_model.write().overwrite().save(string_indexer_output_path)
   
   # Combine continuous, numeric fields with indexes of nominal ones
@@ -171,7 +177,10 @@ def main(base_path, use_lakehouse=True, use_mlflow=True):
   final_vectorized_features = vector_assembler.transform(ml_bucketized_features)
   
   # Save the numeric vector assembler
-  vector_assembler_path = "{}/models/numeric_vector_assembler.bin".format(base_path)
+  if use_lakehouse:
+    vector_assembler_path = "s3a://lakehouse/models/numeric_vector_assembler.bin"
+  else:
+    vector_assembler_path = "{}/models/numeric_vector_assembler.bin".format(base_path)
   vector_assembler.write().overwrite().save(vector_assembler_path)
   
   # Drop the index columns
@@ -193,9 +202,12 @@ def main(base_path, use_lakehouse=True, use_mlflow=True):
   model = rfc.fit(final_vectorized_features)
   
   # Save the new model over the old one
-  model_output_path = "{}/models/spark_random_forest_classifier.flight_delays.5.0.bin".format(
-    base_path
-  )
+  if use_lakehouse:
+    model_output_path = "s3a://lakehouse/models/spark_random_forest_classifier.flight_delays.5.0.bin"
+  else:
+    model_output_path = "{}/models/spark_random_forest_classifier.flight_delays.5.0.bin".format(
+      base_path
+    )
   model.write().overwrite().save(model_output_path)
   
   # Evaluate model using test data
@@ -264,7 +276,7 @@ docker compose exec spark-submit bash -lc "
     --conf spark.hadoop.fs.s3a.access.key=minio \
     --conf spark.hadoop.fs.s3a.secret.key=minio123 \
     --conf spark.hadoop.fs.s3a.path.style.access=true \
-    /app/resources/train_spark_mllib_model.py . --no-
+    /app/train_spark_mllib_model.py .
 "
 
 """

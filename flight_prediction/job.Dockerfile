@@ -14,7 +14,7 @@ ENV PATH=/opt/spark/bin:$PATH
 # Directorio de trabajo
 WORKDIR /app
 
-# Copiar requirements.txt ANTES de instalar dependencias
+# Copiar ficheros que usa spark los jobs
 COPY requirements.txt /app/requirements.txt
 
 # Instalar dependencias Python
