@@ -118,6 +118,7 @@ services:
     volumes:
       - ./models:/app/models
       - ./resources:/app
+      - ivy_cache:/nonexistent/.ivy2.5.2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 10s
@@ -137,10 +138,15 @@ services:
         condition: service_healthy
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_OPTS=-Dspark.worker.cleanup.enabled=false
+      - KAFKA_BROKERS=kafka:9092
+      - CASSANDRA_HOST=cassandra
+      - CASSANDRA_DATACENTER=datacenter1
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
-      - ./models:/app/models
+      - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
       - ./resources:/app
+      - ivy_cache:/nonexistent/.ivy2.5.2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081"]
       interval: 10s
@@ -160,10 +166,15 @@ services:
         condition: service_healthy
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_OPTS=-Dspark.worker.cleanup.enabled=false
+      - KAFKA_BROKERS=kafka:9092
+      - CASSANDRA_HOST=cassandra
+      - CASSANDRA_DATACENTER=datacenter1
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
-      - ./models:/app/models
+      - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
       - ./resources:/app
+      - ivy_cache:/nonexistent/.ivy2.5.2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081"]
       interval: 10s
@@ -201,12 +212,29 @@ services:
       AWS_ACCESS_KEY_ID: minio
       AWS_SECRET_ACCESS_KEY: minio123
     volumes:
-      - ./models:/app/models
+      - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
       - ./resources/lakehouse/setup_iceberg.py:/app/setup_iceberg.py
       - ./resources/train_spark_mllib_model.py:/app/train_spark_mllib_model.py
+      - ivy_cache:/nonexistent/.ivy2.5.2
     networks:
       - ibdn-net
-    command: bash -lc "spark-submit --master spark://spark-master:7077 --deploy-mode client --conf spark.scheduler.mode=FAIR --total-executor-cores 1 --executor-cores 1 --executor-memory 1g --driver-memory 1g --packages com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1,org.apache.hadoop:hadoop-aws:3.4.2,org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1 --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 --conf spark.hadoop.fs.s3a.access.key=minio --conf spark.hadoop.fs.s3a.secret.key=minio123 --conf spark.hadoop.fs.s3a.path.style.access=true --class es.upm.dit.ging.predictor.MakePrediction /app/flight_prediction.jar"
+    command: >
+      bash -lc "spark-submit 
+      --master spark://spark-master:7077 
+      --deploy-mode cluster 
+      --conf spark.scheduler.mode=FAIR 
+      --total-executor-cores 1 
+      --executor-cores 1 
+      --executor-memory 1g 
+      --driver-memory 1g 
+      --conf spark.driver.extraJavaOptions='-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties' 
+      --conf spark.executor.extraJavaOptions='-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties' 
+      --packages com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:spark-sql-kafka-0-10_2.13:4.1.1,org.apache.hadoop:hadoop-aws:3.4.2,org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1 
+      --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 
+      --conf spark.hadoop.fs.s3a.access.key=minio 
+      --conf spark.hadoop.fs.s3a.secret.key=minio123 
+      --conf spark.hadoop.fs.s3a.path.style.access=true 
+      --class es.upm.dit.ging.predictor.MakePrediction /app/flight_prediction.jar"
 
   flask:
     build:
@@ -318,6 +346,7 @@ volumes:
   minio_data:
   mlflow_data:
   postgres_data:
+  ivy_cache:
 
 
 # docker exec airflow-webserver airflow users create \

@@ -27,7 +27,6 @@ models
 deep/data
 .vscode
 ghostdriver.log
-cassandra
 janusgraph
 deep
 data/origin_dest_distances.jsonl
@@ -48,6 +47,8 @@ build/
 dist/
 *.egg-info/
 .eggs/
+flight_prediction/target/
+flight_prediction/project/target/
 
 # IDE / editor
 .vscode/

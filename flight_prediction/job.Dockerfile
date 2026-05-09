@@ -11,6 +11,18 @@ ENV SPARK_PACKAGES="com.datastax.oss:java-driver-core:4.17.0,org.apache.spark:sp
 ENV SPARK_HOME=/opt/spark
 ENV PATH=/opt/spark/bin:$PATH
 
+RUN set -ex; \
+    curl -fsSL -o /opt/spark/jars/spark-sql-kafka-0-10_2.13-4.1.1.jar https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.13/4.1.1/spark-sql-kafka-0-10_2.13-4.1.1.jar; \
+    curl -fsSL -o /opt/spark/jars/spark-token-provider-kafka-0-10_2.13-4.1.1.jar https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.13/4.1.1/spark-token-provider-kafka-0-10_2.13-4.1.1.jar; \
+    curl -fsSL -o /opt/spark/jars/kafka-clients-3.9.1.jar https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.1/kafka-clients-3.9.1.jar; \
+    curl -fsSL -o /opt/spark/jars/java-driver-core-4.17.0.jar https://repo1.maven.org/maven2/com/datastax/oss/java-driver-core/4.17.0/java-driver-core-4.17.0.jar; \
+    curl -fsSL -o /opt/spark/jars/java-driver-shaded-guava-25.1-jre-graal-sub-1.jar https://repo1.maven.org/maven2/com/datastax/oss/java-driver-shaded-guava/25.1-jre-graal-sub-1/java-driver-shaded-guava-25.1-jre-graal-sub-1.jar; \
+    curl -fsSL -o /opt/spark/jars/native-protocol-1.5.1.jar https://repo1.maven.org/maven2/com/datastax/oss/native-protocol/1.5.1/native-protocol-1.5.1.jar; \
+    curl -fsSL -o /opt/spark/jars/typesafe-config-1.4.1.jar https://repo1.maven.org/maven2/com/typesafe/config/1.4.1/config-1.4.1.jar; \
+    curl -fsSL -o /opt/spark/jars/commons-pool2-2.12.1.jar https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.1/commons-pool2-2.12.1.jar; \
+    curl -fsSL -o /opt/spark/jars/hadoop-aws-3.4.2.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.2/hadoop-aws-3.4.2.jar; \
+    curl -fsSL -o /opt/spark/jars/aws-sdk-v2-bundle-2.29.52.jar https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.29.52/bundle-2.29.52.jar
+
 # Directorio de trabajo
 WORKDIR /app
 

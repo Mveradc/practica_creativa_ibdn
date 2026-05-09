@@ -24,36 +24,35 @@ object MakePrediction {
          |) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          |""".stripMargin
 
-    batchDf.foreachPartition { partitionRows: Iterator[Row] =>
-      if (partitionRows.nonEmpty) {
-        val session = CqlSession.builder()
-          .addContactPoint(new InetSocketAddress(cassandraHost, cassandraPort))
-          .withLocalDatacenter(cassandraDatacenter)
-          .withKeyspace(CassandraKeyspace)
-          .build()
+    if (!batchDf.isEmpty) {
+      val session = CqlSession.builder()
+        .addContactPoint(new InetSocketAddress(cassandraHost, cassandraPort))
+        .withLocalDatacenter(cassandraDatacenter)
+        .withKeyspace(CassandraKeyspace)
+        .build()
 
-        try {
-          val preparedStatement = session.prepare(insertStatement)
-
-          partitionRows.foreach { row =>
-            session.execute(preparedStatement.bind(
-              row.getAs[String]("uuid"),
-              row.getAs[String]("origin"),
-              row.getAs[String]("dest"),
-              row.getAs[String]("carrier"),
-              row.getAs[String]("flight_date"),
-              java.lang.Double.valueOf(row.getAs[Double]("dep_delay")),
-              java.lang.Double.valueOf(row.getAs[Double]("distance")),
-              java.lang.Integer.valueOf(row.getAs[Int]("day_of_week")),
-              java.lang.Integer.valueOf(row.getAs[Int]("day_of_year")),
-              java.lang.Integer.valueOf(row.getAs[Int]("day_of_month")),
-              row.getAs[String]("timestamp"),
-              java.lang.Double.valueOf(row.getAs[Double]("prediction"))
-            ))
-          }
-        } finally {
-          session.close()
+      try {
+        val preparedStatement = session.prepare(insertStatement)
+        val rows = batchDf.toLocalIterator()
+        while (rows.hasNext) {
+          val row = rows.next()
+          session.execute(preparedStatement.bind(
+            row.getAs[String]("uuid"),
+            row.getAs[String]("origin"),
+            row.getAs[String]("dest"),
+            row.getAs[String]("carrier"),
+            row.getAs[String]("flight_date"),
+            java.lang.Double.valueOf(row.getAs[Double]("dep_delay")),
+            java.lang.Double.valueOf(row.getAs[Double]("distance")),
+            java.lang.Integer.valueOf(row.getAs[Int]("day_of_week")),
+            java.lang.Integer.valueOf(row.getAs[Int]("day_of_year")),
+            java.lang.Integer.valueOf(row.getAs[Int]("day_of_month")),
+            row.getAs[String]("timestamp"),
+            java.lang.Double.valueOf(row.getAs[Double]("prediction"))
+          ))
         }
+      } finally {
+        session.close()
       }
     }
   }
@@ -64,7 +63,6 @@ object MakePrediction {
     val spark = SparkSession
       .builder
       .appName("StructuredNetworkWordCount")
-      .master(sys.env.getOrElse("SPARK_MASTER", "local[*]"))
       .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")
       .config("spark.hadoop.fs.s3a.access.key", "minio")
       .config("spark.hadoop.fs.s3a.secret.key", "minio123")
@@ -102,7 +100,7 @@ object MakePrediction {
     val df = spark
       .readStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", sys.env.getOrElse("KAFKA_BROKERS", "localhost:9092"))
+      .option("kafka.bootstrap.servers", sys.env.getOrElse("KAFKA_BROKERS", "kafka:9092"))
       .option("subscribe", "flight-delay-ml-request")
       .load()
     df.printSchema()
@@ -225,7 +223,7 @@ object MakePrediction {
     val kafkaQuery = kafkaPredictions
       .writeStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", sys.env.getOrElse("KAFKA_BROKERS", "localhost:9092"))
+      .option("kafka.bootstrap.servers", sys.env.getOrElse("KAFKA_BROKERS", "kafka:9092"))
       .option("topic", sys.env.getOrElse("KAFKA_RESULTS_TOPIC", "flight-delay-ml-results"))
       .option("checkpointLocation", "/tmp/flight-delay-ml-results-checkpoint")
       .outputMode("append")
