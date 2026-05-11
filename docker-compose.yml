@@ -139,9 +139,6 @@ services:
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_OPTS=-Dspark.worker.cleanup.enabled=false
-      - KAFKA_BROKERS=kafka:9092
-      - CASSANDRA_HOST=cassandra
-      - CASSANDRA_DATACENTER=datacenter1
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
       - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
@@ -167,9 +164,6 @@ services:
     environment:
       - SPARK_MASTER_URL=spark://spark-master:7077
       - SPARK_WORKER_OPTS=-Dspark.worker.cleanup.enabled=false
-      - KAFKA_BROKERS=kafka:9092
-      - CASSANDRA_HOST=cassandra
-      - CASSANDRA_DATACENTER=datacenter1
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
       - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
@@ -187,7 +181,7 @@ services:
   spark-submit:
     build:
       context: ./flight_prediction
-      dockerfile: job.Dockerfile
+      dockerfile: Dockerfile
     container_name: spark-submit
     depends_on:
       spark-master:
@@ -203,9 +197,6 @@ services:
       minio-init:
         condition: service_completed_successfully
     environment:
-      KAFKA_BROKERS: kafka:9092
-      CASSANDRA_HOST: cassandra
-      BASE_PATH: /app
       SPARK_MASTER: spark://spark-master:7077
       MLFLOW_TRACKING_URI: http://mlflow:5050
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
@@ -248,10 +239,6 @@ services:
         condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
-    environment:
-      KAFKA_BROKERS: kafka:9092
-      CASSANDRA_HOST: cassandra
-      PROJECT_HOME: /app
     ports:
       - "5001:5001"
     networks:

@@ -13,9 +13,9 @@ object MakePrediction {
   private val CassandraTable = "flight_delay_ml_response"
 
   private def writeBatchToCassandra(batchDf: DataFrame): Unit = {
-    val cassandraHost = sys.env.getOrElse("CASSANDRA_HOST", "cassandra")
-    val cassandraPort = sys.env.get("CASSANDRA_PORT").map(_.toInt).getOrElse(9042)
-    val cassandraDatacenter = sys.env.getOrElse("CASSANDRA_DATACENTER", "datacenter1")
+    val cassandraHost = "cassandra"
+    val cassandraPort = 9042
+    val cassandraDatacenter = "datacenter1"
     val insertStatement =
       s"""
          |INSERT INTO $CassandraKeyspace.$CassandraTable (
@@ -73,7 +73,7 @@ object MakePrediction {
     import spark.implicits._
 
     //Load the arrival delay bucketizer from MinIO
-    val base_path= sys.env.getOrElse("BASE_PATH", ".")
+    val base_path= "/app"
     
     val arrivalBucketizerPath = "s3a://lakehouse/models/arrival_bucketizer_2.0.bin"
     print(arrivalBucketizerPath.toString())
@@ -100,7 +100,7 @@ object MakePrediction {
     val df = spark
       .readStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", sys.env.getOrElse("KAFKA_BROKERS", "kafka:9092"))
+      .option("kafka.bootstrap.servers", "kafka:9092")
       .option("subscribe", "flight-delay-ml-request")
       .load()
     df.printSchema()
@@ -223,8 +223,8 @@ object MakePrediction {
     val kafkaQuery = kafkaPredictions
       .writeStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", sys.env.getOrElse("KAFKA_BROKERS", "kafka:9092"))
-      .option("topic", sys.env.getOrElse("KAFKA_RESULTS_TOPIC", "flight-delay-ml-results"))
+      .option("kafka.bootstrap.servers", "kafka:9092")
+      .option("topic", "flight-delay-ml-results")
       .option("checkpointLocation", "/tmp/flight-delay-ml-results-checkpoint")
       .outputMode("append")
       .start()

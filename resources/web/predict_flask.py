@@ -10,7 +10,7 @@ import config
 # Helpers for search and prediction APIs
 import predict_utils
 
-# Set up Flask, Mongo and Elasticsearch
+# Set up Flask, Cassandra and Elasticsearch
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
@@ -25,7 +25,7 @@ import datetime
 
 # Setup Kafka
 from kafka import KafkaProducer
-KAFKA_BROKERS=os.environ.get('KAFKA_BROKERS', 'kafka:9092')
+KAFKA_BROKERS='kafka:9092'
 cluster = Cluster(['cassandra'])
 session = cluster.connect('agile_data_science')
 prepared_dist = session.prepare("SELECT distance FROM origin_dest_distances WHERE origin=? AND dest=?")
@@ -349,7 +349,7 @@ import joblib
 from os import environ
 
 
-project_home = os.environ["PROJECT_HOME"]
+project_home = "/app"
 # vectorizer = joblib.load("{}/models/sklearn_vectorizer.pkl".format(project_home))
 # regressor = joblib.load("{}/models/sklearn_regressor.pkl".format(project_home))
 

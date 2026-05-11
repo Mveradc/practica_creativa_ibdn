@@ -13,11 +13,6 @@ COPY config.py .
 COPY static/ ./static/
 COPY templates/ ./templates/
 
-# Variable de entorno que necesita predict_flask.py
-ENV PROJECT_HOME=/app
-ENV KAFKA_BROKERS=kafka:9092
-ENV MONGO_URI=mongodb://mongo:27017
-
 EXPOSE 5001
 
 CMD ["python3", "predict_flask.py"]
