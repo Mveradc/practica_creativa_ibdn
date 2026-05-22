@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cassandra-init
+  namespace: flight-prediction
+  labels:
+    app.kubernetes.io/name: cassandra-init
+    app.kubernetes.io/component: init
+    app.kubernetes.io/part-of: agile-data-science
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cassandra-init
+        app.kubernetes.io/component: init
+        app.kubernetes.io/part-of: agile-data-science
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: flight-prediction-sa
+      initContainers:
+        - name: wait-for-cassandra
+          image: cassandra:4.1
+          command:
+            - sh
+            - -c
+            - |
+              until cqlsh cassandra -e "describe keyspaces" > /dev/null 2>&1; do
+                echo "Waiting for Cassandra..."; sleep 10;
+              done
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      containers:
+        - name: cassandra-init
+          image: cassandra:4.1
+          command:
+            - cqlsh
+            - cassandra
+            - -f
+            - /tmp/init.cql
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: cql-script
+              mountPath: /tmp/init.cql
+              subPath: init.cql
+      volumes:
+        - name: cql-script
+          configMap:
+            name: cassandra-init-cql

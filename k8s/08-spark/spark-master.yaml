@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master
+  namespace: flight-prediction
+  labels:
+    app.kubernetes.io/name: spark-master
+    app.kubernetes.io/component: spark
+    app.kubernetes.io/part-of: agile-data-science
+spec:
+  selector:
+    app.kubernetes.io/name: spark-master
+  ports:
+    - name: spark
+      port: 7077
+      targetPort: 7077
+    - name: webui
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master-ui
+  namespace: flight-prediction
+  labels:
+    app.kubernetes.io/name: spark-master
+    app.kubernetes.io/component: spark
+    app.kubernetes.io/part-of: agile-data-science
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: spark-master
+  ports:
+    - name: webui
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-master
+  namespace: flight-prediction
+  labels:
+    app.kubernetes.io/name: spark-master
+    app.kubernetes.io/component: spark
+    app.kubernetes.io/part-of: agile-data-science
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spark-master
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spark-master
+        app.kubernetes.io/component: spark
+        app.kubernetes.io/part-of: agile-data-science
+    spec:
+      serviceAccountName: flight-prediction-sa
+      containers:
+        - name: spark-master
+          image: us-central1-docker.pkg.dev/practica-creativa-494612/flight-prediction/spark-predictor:latest
+          command:
+            - /opt/spark/bin/spark-class
+            - org.apache.spark.deploy.master.Master
+          env:
+            - name: SPARK_MASTER_PORT
+              value: "7077"
+            - name: SPARK_MASTER_WEBUI_PORT
+              value: "8080"
+          ports:
+            - name: spark
+              containerPort: 7077
+            - name: webui
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: models
+              mountPath: /app/models
+            - name: ivy-cache
+              mountPath: /nonexistent/.ivy2.5.2
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: models-data
+        - name: ivy-cache
+          emptyDir: {}

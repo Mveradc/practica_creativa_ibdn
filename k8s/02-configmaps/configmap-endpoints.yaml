@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flight-prediction-endpoints
+  namespace: flight-prediction
+  labels:
+    app.kubernetes.io/name: flight-prediction
+data:
+  # Kafka
+  KAFKA_BROKERS: "kafka:9092"
+  KAFKA_TOPIC_REQUEST: "flight-delay-ml-request"
+  KAFKA_TOPIC_RESPONSE: "flight-delay-ml-results"
+  
+  # Cassandra
+  CASSANDRA_HOST: "cassandra"
+  CASSANDRA_PORT: "9042"
+  CASSANDRA_KEYSPACE: "agile_data_science"
+  CASSANDRA_DC: "datacenter1"
+  
+  # MinIO
+  MINIO_ENDPOINT: "http://minio:9000"
+  MINIO_REGION: "us-east-1"
+  MINIO_BUCKET_LAKEHOUSE: "lakehouse"
+  MINIO_USE_SSL: "false"
+  
+  # Spark
+  SPARK_MASTER: "spark://spark-master:7077"
+  SPARK_MASTER_WEB_UI: "http://spark-master:8080"
+  SPARK_WORKER_CORES: "1"
+  SPARK_WORKER_MEMORY: "1g"
+  SPARK_DRIVER_MEMORY: "1g"
+  SPARK_EXECUTOR_MEMORY: "1g"
+  
+  # MLflow
+  MLFLOW_TRACKING_URI: "http://mlflow:5050"
+  
+  # PostgreSQL (Airflow)
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "airflow"
+  POSTGRES_USER: "airflow"
+  
+  # MongoDB (optional, legacy)
+  MONGODB_URI: "mongodb://mongodb:27017"
+  MONGODB_DB: "agile_data_science"
+  
+  # Flask
+  FLASK_ENV: "production"
+  FLASK_DEBUG: "0"
+  FLASK_PORT: "5001"
