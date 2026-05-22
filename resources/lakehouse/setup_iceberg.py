@@ -1,16 +1,7 @@
 from pyspark.sql import SparkSession
 import os
 
-ICEBERG_ARTIFACT = os.environ.get(
-    "ICEBERG_ARTIFACT",
-    "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1",
-)
-HADOOP_AWS_ARTIFACT = os.environ.get(
-    "HADOOP_AWS_ARTIFACT",
-    "org.apache.hadoop:hadoop-aws:3.4.2",
-)
 
-os.environ["PYSPARK_SUBMIT_ARGS"] = f"--packages {ICEBERG_ARTIFACT},{HADOOP_AWS_ARTIFACT} pyspark-shell"
 
 # Configuración de la Sesión de Spark
 spark = SparkSession.builder \
@@ -90,5 +81,24 @@ docker compose exec spark-master bash -lc "
     --conf spark.hadoop.fs.s3a.path.style.access=true \
     -e 'SELECT COUNT(*) AS total FROM local.db.vuelos;'
 "
+
+
+kubectl exec -n flight-prediction spark-master-64584f545b-nsdfg -- \
+  bash -lc 'spark-submit \
+    --master k8s://https://kubernetes.default.svc:443 \
+    --deploy-mode cluster \
+    --conf spark.kubernetes.container.image=us-central1-docker.pkg.dev/practica-creativa-494612/flight-prediction/spark-predictor:latest \
+    --conf spark.kubernetes.namespace=flight-prediction \
+    --conf spark.kubernetes.authenticate.driver.serviceAccountName=flight-prediction-sa \
+    --conf spark.scheduler.minRegisteredResourcesRatio=0 \
+    --conf spark.scheduler.maxRegisteredResourcesWaitingTime=120s \
+    --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 \
+    --conf spark.hadoop.fs.s3a.access.key=minio \
+    --conf spark.hadoop.fs.s3a.secret.key=minio123 \
+    --conf spark.hadoop.fs.s3a.path.style.access=true \
+    --executor-memory 512m \
+    --driver-memory 512m \
+    --packages org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1,org.apache.hadoop:hadoop-aws:3.4.2 \
+    local:///app/setup_iceberg.py'
 
 """

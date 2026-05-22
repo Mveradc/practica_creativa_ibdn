@@ -26,18 +26,22 @@ RUN set -ex; \
 WORKDIR /app
 
 # Copiar ficheros que usa spark los jobs
-COPY requirements.txt /app/requirements.txt
+COPY flight_prediction/requirements.txt /app/requirements.txt
 
 # Instalar dependencias Python
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install --no-cache-dir -r /app/requirements.txt
 
 # Copiar el JAR compilado
-COPY target/scala-2.13/flight_prediction_2.13-0.1.jar /app/flight_prediction.jar
+COPY flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar /app/flight_prediction.jar
+
+# Copiar scripts Python de recursos
+COPY resources/lakehouse/setup_iceberg.py /app/setup_iceberg.py
+COPY resources/train_spark_mllib_model.py /app/train_spark_mllib_model.py
 
 # Directorio donde se montarán los modelos como volumen
 RUN mkdir -p /app/models
-RUN chown -R spark:spark /app/models
+RUN chown -R spark:spark /app
 RUN mkdir -p /nonexistent/.ivy2.5.2/cache /nonexistent/.ivy2.5.2/jars && chown -R spark:spark /nonexistent
 
 USER spark

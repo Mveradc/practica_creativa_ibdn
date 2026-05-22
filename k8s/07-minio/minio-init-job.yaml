@@ -30,8 +30,8 @@ spec:
               done
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: 100m
+              memory: 128Mi
             limits:
               cpu: 100m
               memory: 128Mi
@@ -59,8 +59,8 @@ spec:
               mc anonymous set none local/lakehouse
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: 100m
+              memory: 128Mi
             limits:
               cpu: 100m
               memory: 128Mi

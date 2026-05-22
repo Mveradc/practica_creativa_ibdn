@@ -9,17 +9,17 @@ spec:
   limits:
     # Container defaults
     - max:
-        cpu: "1"
-        memory: 1Gi
+        cpu: "2"
+        memory: 2Gi
       min:
-        cpu: 50m
-        memory: 64Mi
-      default:
-        cpu: 250m
-        memory: 256Mi
-      defaultRequest:
         cpu: 100m
         memory: 128Mi
+      default:
+        cpu: "1"
+        memory: 1Gi
+      defaultRequest:
+        cpu: 250m
+        memory: 256Mi
       type: Container
     # Pod limits
     - max:
