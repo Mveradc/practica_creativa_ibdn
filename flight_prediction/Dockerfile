@@ -20,7 +20,8 @@ RUN set -ex; \
     curl -fsSL -o /opt/spark/jars/typesafe-config-1.4.1.jar https://repo1.maven.org/maven2/com/typesafe/config/1.4.1/config-1.4.1.jar; \
     curl -fsSL -o /opt/spark/jars/commons-pool2-2.12.1.jar https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.12.1/commons-pool2-2.12.1.jar; \
     curl -fsSL -o /opt/spark/jars/hadoop-aws-3.4.2.jar https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.2/hadoop-aws-3.4.2.jar; \
-    curl -fsSL -o /opt/spark/jars/aws-sdk-v2-bundle-2.29.52.jar https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.29.52/bundle-2.29.52.jar
+    curl -fsSL -o /opt/spark/jars/aws-sdk-v2-bundle-2.29.52.jar https://repo1.maven.org/maven2/software/amazon/awssdk/bundle/2.29.52/bundle-2.29.52.jar; \
+    curl -fsSL -o /opt/spark/jars/iceberg-spark-runtime-4.0_2.13-1.10.1.jar https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-4.0_2.13/1.10.1/iceberg-spark-runtime-4.0_2.13-1.10.1.jar
 
 # Directorio de trabajo
 WORKDIR /app

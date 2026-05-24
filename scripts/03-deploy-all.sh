@@ -86,30 +86,30 @@ log_info "Spark cluster listo"
 echo ""
 echo "=== Fase 7: MLflow ==="
 kubectl apply -f "$K8S_DIR/09-mlflow/mlflow.yaml"
-kubectl rollout status deployment/mlflow -n $NAMESPACE --timeout=120s
+kubectl rollout status deployment/mlflow -n $NAMESPACE --timeout=300s
 log_info "MLflow listo"
 
 # Fase 6: PostgreSQL + Airflow
 echo ""
 echo "=== Fase 8: PostgreSQL ==="
 kubectl apply -f "$K8S_DIR/10-postgres/postgres.yaml"
-kubectl rollout status statefulset/postgres -n $NAMESPACE --timeout=120s
+kubectl rollout status statefulset/postgres -n $NAMESPACE --timeout=300s
 log_info "PostgreSQL listo"
 
 echo ""
 echo "=== Fase 9: Airflow ==="
 kubectl apply -f "$K8S_DIR/11-airflow/airflow-init-job.yaml"
-kubectl wait --for=condition=complete job/airflow-init -n $NAMESPACE --timeout=180s
+kubectl wait --for=condition=complete job/airflow-init -n $NAMESPACE --timeout=300s
 kubectl apply -f "$K8S_DIR/11-airflow/airflow.yaml"
-kubectl rollout status deployment/airflow-scheduler -n $NAMESPACE --timeout=120s
-kubectl rollout status deployment/airflow-webserver -n $NAMESPACE --timeout=120s
+kubectl rollout status deployment/airflow-scheduler -n $NAMESPACE --timeout=300s
+kubectl rollout status deployment/airflow-webserver -n $NAMESPACE --timeout=300s
 log_info "Airflow listo (admin/admin)"
 
 # Fase 7: Flask API
 echo ""
 echo "=== Fase 10: Flask API ==="
 kubectl apply -f "$K8S_DIR/12-flask/flask.yaml"
-kubectl rollout status deployment/flask -n $NAMESPACE --timeout=120s
+kubectl rollout status deployment/flask -n $NAMESPACE --timeout=300s
 log_info "Flask API listo"
 
 # Resumen

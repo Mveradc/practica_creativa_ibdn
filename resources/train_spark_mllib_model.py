@@ -15,42 +15,34 @@ def main(base_path, use_lakehouse=True, use_mlflow=True):
   APP_NAME = "train_spark_mllib_model.py"
   
   # If there is no SparkSession, create the environment
-  try:
-    sc and spark
-  except (NameError, UnboundLocalError) as e:
-    import findspark
-    findspark.init()
-    import pyspark
-    import pyspark.sql
-    
-    sc = pyspark.SparkContext()
-    spark_builder = pyspark.sql.SparkSession.builder.appName(APP_NAME)
-    
-    # Configure Iceberg if using lakehouse
-    if use_lakehouse:
-      spark_builder = spark_builder \
-        .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-        .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
-        .config("spark.sql.catalog.local.type", "hadoop") \
-        .config("spark.sql.catalog.local.warehouse", "s3a://lakehouse/warehouse") \
-        .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
-        .config("spark.hadoop.fs.s3a.access.key", "minio") \
-        .config("spark.hadoop.fs.s3a.secret.key", "minio123") \
-        .config("spark.hadoop.fs.s3a.path.style.access", "true") \
-        .config("spark.hadoop.fs.s3a.connection.timeout", "60000") \
-        .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
-    
-    spark = spark_builder.getOrCreate()
-    
-    # Initialize MLflow if requested
-    if use_mlflow:
-      try:
-        import mlflow
-        mlflow.set_tracking_uri("http://mlflow:5050")
-        mlflow.set_experiment("flight_delay_prediction")
-        mlflow.start_run()
-      except Exception as e:
-        print(f"MLflow not available: {e}. Continuing without tracking.")
+  from pyspark.sql import SparkSession
+
+  spark_builder = SparkSession.builder.appName(APP_NAME)
+
+  if use_lakehouse:
+    spark_builder = spark_builder \
+      .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+      .config("spark.sql.catalog.local", "org.apache.iceberg.spark.SparkCatalog") \
+      .config("spark.sql.catalog.local.type", "hadoop") \
+      .config("spark.sql.catalog.local.warehouse", "s3a://lakehouse/warehouse") \
+      .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
+      .config("spark.hadoop.fs.s3a.access.key", "minio") \
+      .config("spark.hadoop.fs.s3a.secret.key", "minio123") \
+      .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+      .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+      .config("spark.hadoop.fs.s3a.connection.timeout", "60000") \
+      .config("spark.hadoop.fs.s3a.socket.timeout", "60000")
+
+  spark = spark_builder.getOrCreate()
+
+  if use_mlflow:
+    try:
+      import mlflow
+      mlflow.set_tracking_uri("http://mlflow:5050")
+      mlflow.set_experiment("flight_delay_prediction")
+      mlflow.start_run()
+    except Exception as e:
+      print(f"MLflow not available: {e}. Continuing without tracking.")
   
   #
   # {
@@ -258,16 +250,43 @@ if __name__ == "__main__":
 
 """
 
-docker compose exec spark-submit bash -lc "
-  spark-submit \
-    --master spark://spark-master:7077 \
-    --deploy-mode client \
-    --conf spark.scheduler.mode=FAIR \
-    --total-executor-cores 2 \
-    --executor-cores 2 \
-    --executor-memory 4g \
-    --driver-memory 2g \
-    --packages org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1,org.apache.hadoop:hadoop-aws:3.4.2 \
+docker exec spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode cluster \
+  --conf spark.driver.host=spark-master \
+  --conf spark.driver.bindAddress=0.0.0.0 \
+  --conf spark.jars.ivy=/tmp/.ivy2 \
+  --packages org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1,org.apache.hadoop:hadoop-aws:3.4.2,com.amazonaws:aws-java-sdk-bundle:1.12.367 \
+  --conf spark.driver.userClassPathFirst=true \
+  --conf spark.executor.userClassPathFirst=true \
+  --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 \
+  --conf spark.hadoop.fs.s3a.access.key=minio \
+  --conf spark.hadoop.fs.s3a.secret.key=minio123 \
+  --conf spark.hadoop.fs.s3a.path.style.access=true \
+  --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem \
+  --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
+  --conf spark.sql.catalog.minio=org.apache.iceberg.spark.SparkCatalog \
+  --conf spark.sql.catalog.minio.type=hadoop \
+  --conf "spark.sql.catalog.minio.warehouse=s3a://lakehouse/warehouse" \
+  /app/train_spark_mllib_model.py .
+
+
+kubectl exec -n flight-prediction spark-master-7fdcdd7468-vmw6w -- \
+  bash -lc 'spark-submit \
+    --master k8s://https://kubernetes.default.svc:443 \
+    --deploy-mode cluster \
+    --name train-flight-delay \
+    --conf spark.kubernetes.container.image=us-central1-docker.pkg.dev/practica-creativa-494612/flight-prediction/spark-predictor:latest \
+    --conf spark.kubernetes.container.image.pullPolicy=Always \
+    --conf spark.kubernetes.namespace=flight-prediction \
+    --conf spark.kubernetes.authenticate.driver.serviceAccountName=flight-prediction-sa \
+    --conf spark.kubernetes.driver.podTemplateContainerName=spark-kubernetes-driver \
+    --conf spark.scheduler.minRegisteredResourcesRatio=0 \
+    --conf spark.scheduler.maxRegisteredResourcesWaitingTime=120s \
+    --conf spark.executor.instances=2 \
+    --driver-memory 1g \
+    --executor-memory 1g \
     --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
     --conf spark.sql.catalog.local=org.apache.iceberg.spark.SparkCatalog \
     --conf spark.sql.catalog.local.type=hadoop \
@@ -276,7 +295,6 @@ docker compose exec spark-submit bash -lc "
     --conf spark.hadoop.fs.s3a.access.key=minio \
     --conf spark.hadoop.fs.s3a.secret.key=minio123 \
     --conf spark.hadoop.fs.s3a.path.style.access=true \
-    /app/train_spark_mllib_model.py .
-"
-
+    --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem \
+    local:///app/train_spark_mllib_model.py .'
 """

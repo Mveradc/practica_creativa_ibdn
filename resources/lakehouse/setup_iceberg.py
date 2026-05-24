@@ -83,7 +83,7 @@ docker compose exec spark-master bash -lc "
 "
 
 
-kubectl exec -n flight-prediction spark-master-64584f545b-nsdfg -- \
+kubectl exec -n flight-prediction spark-master-7fdcdd7468-vmw6w -- \
   bash -lc 'spark-submit \
     --master k8s://https://kubernetes.default.svc:443 \
     --deploy-mode cluster \
@@ -98,7 +98,6 @@ kubectl exec -n flight-prediction spark-master-64584f545b-nsdfg -- \
     --conf spark.hadoop.fs.s3a.path.style.access=true \
     --executor-memory 512m \
     --driver-memory 512m \
-    --packages org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.1,org.apache.hadoop:hadoop-aws:3.4.2 \
     local:///app/setup_iceberg.py'
 
 """
