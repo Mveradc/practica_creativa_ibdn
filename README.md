@@ -1,7 +1,6 @@
 # Despliegue en Kubernetes (GKE)
 
-Guía para desplegar el sistema de predicción de retrasos de vuelos en Google
-Kubernetes Engine (GKE).
+Práctica creativa (IBDN) - Por Pablo Melero y Miguel Vera 
 
 ## Componentes que se despliegan
 
