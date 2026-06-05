@@ -94,7 +94,17 @@ sube al Artifact Registry.
 bash scripts/02-build-images.sh
 ```
 
-## 4. Desplegar todo
+## 4. Descargar los datos y desplegar
+
+El despliegue necesita dos ficheros en `data/` que **no** están en el
+repositorio: las distancias entre aeropuertos
+(`origin_dest_distances.jsonl`, que se importa en Cassandra) y los datos de
+entrenamiento (`simple_flight_delay_features.jsonl.bz2`, que se carga en
+MinIO). Descárgalos antes de desplegar:
+
+```bash
+bash resources/download_data.sh
+```
 
 Despliega todos los componentes en orden, espera a que cada uno esté listo,
 importa las distancias en Cassandra, carga los datos de entrenamiento en MinIO,
