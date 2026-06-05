@@ -68,11 +68,39 @@ gcloud auth login
 gcloud config set project practica-creativa-494612
 ```
 
-> Nota: el `PROJECT_ID` (`practica-creativa-494612`) y la zona
-> (`europe-west1-b`) están fijados en los scripts. Si usas otro proyecto,
-> edita las variables al inicio de `scripts/01-setup-gke.sh`,
-> `scripts/02-build-images.sh` y los `--conf spark.kubernetes.container.image`
-> de `scripts/03-deploy.sh`.
+> **IMPORTANTE — cambiar de proyecto GCP.** El `PROJECT_ID`
+> (`practica-creativa-494612`) y la zona (`europe-west1-b`) están escritos a
+> mano en varios ficheros. No basta con cambiar la variable de los scripts: la
+> ruta de las imágenes Docker está incrustada como texto literal en los
+> manifiestos de Kubernetes, así que si solo editas los scripts GKE seguirá
+> intentando descargar las imágenes del proyecto antiguo y fallará con
+> `Cannot pull image ...`.
+>
+> Si usas otro proyecto, sustituye `practica-creativa-494612` por tu PROJECT_ID
+> en **todos** estos ficheros:
+>
+> | Fichero | Qué contiene |
+> |---|---|
+> | `scripts/01-setup-gke.sh` | variable `PROJECT_ID` |
+> | `scripts/02-build-images.sh` | variable `PROJECT_ID` |
+> | `scripts/03-deploy.sh` | dos `--conf spark.kubernetes.container.image` (setup Iceberg y entrenamiento) |
+> | `k8s/08-spark/spark-master.yaml` | `image:` del Spark master |
+> | `k8s/08-spark/spark-workers.yaml` | `image:` de los Spark workers |
+> | `k8s/08-spark/spark-submit.yaml` | `image:` del predictor en streaming |
+> | `k8s/12-flask/flask.yaml` | `image:` de la web Flask |
+> | `k8s/11-airflow/airflow-dags-configmap.yaml` | variable `IMAGE` del DAG |
+>
+> Puedes hacerlo de una sola vez con:
+>
+> ```bash
+> grep -rl "practica-creativa-494612" --include="*.sh" --include="*.yaml" scripts/ k8s/ \
+>   | xargs sed -i "s/practica-creativa-494612/TU-PROJECT-ID/g"
+> ```
+>
+> Si además cambias la región del Artifact Registry (`us-central1` por defecto,
+> en `scripts/01-setup-gke.sh` y `02-build-images.sh`), asegúrate de que la
+> parte `us-central1-docker.pkg.dev` de esos mismos ficheros coincide con la
+> nueva región.
 
 ## 2. Crear el cluster y el registro de imágenes
 
