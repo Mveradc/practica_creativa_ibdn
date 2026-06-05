@@ -72,8 +72,6 @@ spec:
       containers:
         - name: spark-submit
           image: us-central1-docker.pkg.dev/practica-creativa-494612/flight-prediction/spark-predictor:latest
-          # Uses client mode instead of cluster mode so the driver stays in this pod
-          # and Kubernetes can manage its lifecycle (restart on failure).
           command:
             - bash
             - -lc
@@ -81,22 +79,22 @@ spec:
               spark-submit \
                 --master k8s://https://kubernetes.default.svc:443 \
                 --deploy-mode cluster \
-                --conf spark.driver.host=${SPARK_LOCAL_IP} \
-                --conf spark.driver.bindAddress=0.0.0.0 \
-                --conf spark.scheduler.mode=FAIR \
-                --total-executor-cores 1 \
+                --name make-prediction \
+                --conf spark.kubernetes.container.image=us-central1-docker.pkg.dev/practica-creativa-494612/flight-prediction/spark-predictor:latest \
+                --conf spark.kubernetes.container.image.pullPolicy=Always \
+                --conf spark.kubernetes.namespace=flight-prediction \
+                --conf spark.kubernetes.authenticate.driver.serviceAccountName=flight-prediction-sa \
+                --conf spark.kubernetes.jars.avoidDownloadSchemes=local \
+                --conf spark.kubernetes.submission.waitAppCompletion=true \
+                --conf spark.scheduler.minRegisteredResourcesRatio=0 \
+                --conf spark.scheduler.maxRegisteredResourcesWaitingTime=120s \
+                --conf spark.executor.instances=1 \
                 --executor-cores 1 \
                 --executor-memory 1g \
                 --driver-memory 1g \
-                --conf spark.driver.extraJavaOptions='-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties' \
-                --conf spark.executor.extraJavaOptions='-Dlog4j.configuration=file:/opt/spark/conf/log4j.properties' \
                 --class es.upm.dit.ging.predictor.MakePrediction \
-                /app/flight_prediction.jar
+                local:///app/flight_prediction.jar
           env:
-            - name: SPARK_LOCAL_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
             - name: SPARK_MASTER
               value: "spark://spark-master:7077"
             - name: MLFLOW_TRACKING_URI
