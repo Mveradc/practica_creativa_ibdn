@@ -41,8 +41,25 @@ sudo apt-get install -y kubectl
 
 ```bash
 sudo apt-get install -y docker.io
-sudo usermod -aG docker $USER   # reiniciar sesion despues
+sudo usermod -aG docker $USER
 ```
+
+El cambio de grupo solo se aplica a sesiones de login nuevas **en la VM**. Si
+ejecutas el build en la misma sesión SSH verás
+`permission denied ... /var/run/docker.sock`. Para activarlo:
+
+```bash
+newgrp docker   # activa el grupo en la sesion actual, sin reconectar
+docker ps       # verifica que conecta sin error de permisos
+```
+
+Alternativamente, cierra la sesión SSH (`exit`) y vuelve a entrar a la VM; al
+crearse una sesión de login nueva el grupo ya estará activo (da igual desde qué
+terminal local lo hagas).
+
+No uses `sudo` para construir/subir imágenes: las credenciales del Artifact
+Registry se configuran en tu `~/.docker/config.json` (paso del script 01) y con
+`sudo` Docker usaría la config de root, fallando el push.
 
 ### Autenticación en GCP
 

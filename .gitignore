@@ -47,8 +47,12 @@ build/
 dist/
 *.egg-info/
 .eggs/
-flight_prediction/target/
+flight_prediction/target/*
 flight_prediction/project/target/
+# Excepción: mantener el jar compilado versionado para no recompilar en cada build
+!flight_prediction/target/scala-2.13
+flight_prediction/target/scala-2.13/*
+!flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar
 
 # IDE / editor
 .vscode/
