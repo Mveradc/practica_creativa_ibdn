@@ -214,14 +214,16 @@ def main(base_path, use_lakehouse=True, use_mlflow=True):
   accuracy = evaluator.evaluate(predictions)
   print("Accuracy = {}".format(accuracy))
   
-  # Log metrics to MLflow if enabled
+  # Log metrics and model to MLflow if enabled
   if use_mlflow:
     try:
       import mlflow
+      import mlflow.spark
       mlflow.log_metric("accuracy", accuracy)
       mlflow.log_param("use_lakehouse", use_lakehouse)
       mlflow.log_param("num_trees", 20)  # RandomForestClassifier default
       mlflow.log_param("max_bins", 4657)
+      mlflow.spark.log_model(model, "spark-model", registered_model_name="flight_delay_classifier")
     except Exception as e:
       print(f"Could not log to MLflow: {e}")
   

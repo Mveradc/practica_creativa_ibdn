@@ -4,7 +4,7 @@ set -e
 NAMESPACE="flight-prediction"
 MINIO_SVC="minio"
 MINIO_PORT="9000"
-LOCAL_PORT="9000"
+LOCAL_PORT="19000"
 DATA_DIR="$(cd "$(dirname "$0")/../../data" && pwd)"
 DATA_FILE="simple_flight_delay_features.jsonl.bz2"
 MINIO_DEST="lakehouse/training-data/simple_flight_delay_features.jsonl.bz2"
@@ -23,7 +23,7 @@ kubectl port-forward -n $NAMESPACE svc/$MINIO_SVC ${LOCAL_PORT}:${MINIO_PORT} &
 PF_PID=$!
 
 # Cerrar port-forward al salir (éxito o error)
-trap "kill $PF_PID 2>/dev/null; echo '  Port-forward cerrado'" EXIT
+trap "kill $PF_PID 2>/dev/null || true; echo '  Port-forward cerrado'" EXIT
 
 # Esperar a que el tunnel esté listo
 sleep 3
@@ -45,6 +45,3 @@ docker run --rm --network host \
   "
 
 echo "Datos subidos a s3a://$MINIO_DEST"
-echo ""
-echo "Próximo paso: ejecutar el job de entrenamiento"
-echo "   bash scripts/06-train-model.sh"

@@ -43,6 +43,9 @@ data:
         "--conf spark.hadoop.fs.s3a.secret.key=minio123",
         "--conf spark.hadoop.fs.s3a.path.style.access=true",
         "--conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem",
+        "--conf spark.kubernetes.driverEnv.MLFLOW_S3_ENDPOINT_URL=http://minio:9000",
+        "--conf spark.kubernetes.driverEnv.AWS_ACCESS_KEY_ID=minio",
+        "--conf spark.kubernetes.driverEnv.AWS_SECRET_ACCESS_KEY=minio123",
         "local:///app/train_spark_mllib_model.py .",
     ])
 

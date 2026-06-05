@@ -117,7 +117,6 @@ services:
       - "8080:8080"
     volumes:
       - ./models:/app/models
-      - ./resources:/app
       - ivy_cache:/nonexistent/.ivy2.5.2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
@@ -141,8 +140,6 @@ services:
       - SPARK_WORKER_OPTS=-Dspark.worker.cleanup.enabled=false
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
-      - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
-      - ./resources:/app
       - ivy_cache:/nonexistent/.ivy2.5.2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081"]
@@ -166,8 +163,6 @@ services:
       - SPARK_WORKER_OPTS=-Dspark.worker.cleanup.enabled=false
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     volumes:
-      - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
-      - ./resources:/app
       - ivy_cache:/nonexistent/.ivy2.5.2
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081"]
@@ -203,9 +198,6 @@ services:
       AWS_ACCESS_KEY_ID: minio
       AWS_SECRET_ACCESS_KEY: minio123
     volumes:
-      - ./flight_prediction/target/scala-2.13/flight_prediction_2.13-0.1.jar:/app/flight_prediction.jar
-      - ./resources/lakehouse/setup_iceberg.py:/app/setup_iceberg.py
-      - ./resources/train_spark_mllib_model.py:/app/train_spark_mllib_model.py
       - ivy_cache:/nonexistent/.ivy2.5.2
     networks:
       - ibdn-net
