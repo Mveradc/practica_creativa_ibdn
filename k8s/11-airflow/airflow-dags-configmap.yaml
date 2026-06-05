@@ -32,6 +32,8 @@ data:
         "--conf spark.scheduler.minRegisteredResourcesRatio=0",
         "--conf spark.scheduler.maxRegisteredResourcesWaitingTime=120s",
         "--conf spark.executor.instances=2",
+        "--conf spark.kubernetes.driver.request.cores=0.3",
+        "--conf spark.kubernetes.executor.request.cores=0.3",
         "--driver-memory 1g",
         "--executor-memory 1g",
         "--conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
