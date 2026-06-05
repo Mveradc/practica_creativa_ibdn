@@ -79,8 +79,8 @@ spec:
             - -lc
             - |
               spark-submit \
-                --master spark://spark-master:7077 \
-                --deploy-mode client \
+                --master k8s://https://kubernetes.default.svc:443 \
+                --deploy-mode cluster \
                 --conf spark.driver.host=${SPARK_LOCAL_IP} \
                 --conf spark.driver.bindAddress=0.0.0.0 \
                 --conf spark.scheduler.mode=FAIR \
